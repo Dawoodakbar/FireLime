@@ -6,19 +6,33 @@
 //
 
 import SwiftUI
+import FirebaseCore
 
 struct ContentView: View {
+    @StateObject private var authManager = AuthManager.shared
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            if authManager.user != nil {
+                HomeView()
+            } else {
+                LoginView()
+            }
         }
-        .padding()
+        .animation(.default, value: authManager.user) 
     }
 }
 
 #Preview {
-    ContentView()
+    if FirebaseApp.app() == nil {
+        // Manually configure for the preview so it doesn't crash if the plist is missing from the bundle
+        let options = FirebaseOptions(googleAppID: "1:501143449550:ios:db397020d7a1c074bdc59f",
+                                      gcmSenderID: "501143449550")
+        options.apiKey = "AIzaSyB19l2btvDoRU5uCUEEB17NqG3kMlZOfvY"
+        options.projectID = "firelime-bd687"
+        options.clientID = "501143449550-32dgq9hbtsa5acl0v2ps7on20ir7a913.apps.googleusercontent.com"
+        FirebaseApp.configure(options: options)
+    }
+    return ContentView()
 }
+
