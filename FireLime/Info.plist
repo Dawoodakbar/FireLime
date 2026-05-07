@@ -14,7 +14,8 @@
 				<string>com.googleusercontent.apps.501143449550-32dgq9hbtsa5acl0v2ps7on20ir7a913</string>
 			</array>
 		</dict>
-		<dict/>
 	</array>
+	<key>GIDClientID</key>
+	<string>501143449550-32dgq9hbtsa5acl0v2ps7on20ir7a913.apps.googleusercontent.com</string>
 </dict>
 </plist>
