@@ -93,12 +93,19 @@ extension AppleSignInHelper: ASAuthorizationControllerDelegate {
     }
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        continuation?.resume(throwing: error)
+        let nsError = error as NSError
+        if nsError.domain == ASAuthorizationErrorDomain && nsError.code == ASAuthorizationError.canceled.rawValue {
+            continuation?.resume(throwing: AuthError.userCancelled)
+        } else {
+            continuation?.resume(throwing: error)
+        }
     }
 }
 
 extension AppleSignInHelper: ASAuthorizationControllerPresentationContextProviding {
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        return UIApplication.shared.windows.first { $0.isKeyWindow } ?? UIWindow()
+        let scenes = UIApplication.shared.connectedScenes
+        let windowScene = scenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+        return windowScene?.windows.first { $0.isKeyWindow } ?? UIWindow()
     }
 }

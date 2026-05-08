@@ -2,6 +2,7 @@ import Foundation
 import FirebaseAuth
 import Combine
 import GoogleSignIn
+import FirebaseFirestore
 
 enum AuthError: LocalizedError {
     case invalidEmail
@@ -10,6 +11,7 @@ enum AuthError: LocalizedError {
     case emailAlreadyInUse
     case weakPassword
     case networkError
+    case userCancelled
     case unknown(String)
     
     var errorDescription: String? {
@@ -20,6 +22,7 @@ enum AuthError: LocalizedError {
         case .emailAlreadyInUse: return "This email is already registered."
         case .weakPassword: return "The password must be at least 6 characters long."
         case .networkError: return "A network error occurred. Please check your connection."
+        case .userCancelled: return "Sign-in was cancelled."
         case .unknown(let message): return message
         }
     }
@@ -30,7 +33,7 @@ protocol AuthManagerProtocol {
     var isAuthenticated: Bool { get }
     
     func signIn(email: String, password: String) async throws
-    func signUp(email: String, password: String) async throws
+    func signUp(email: String, password: String, displayName: String) async throws
     func signInWithApple() async throws
     func signInWithGoogle() async throws
     func verifyPhoneNumber(_ phoneNumber: String) async throws -> String
@@ -50,7 +53,19 @@ class AuthManager: ObservableObject, AuthManagerProtocol {
     var isAuthenticated: Bool {
         return user != nil
     }
-    
+
+    var currentUserId: String? {
+        Auth.auth().currentUser?.uid
+    }
+
+    var currentDisplayName: String? {
+        Auth.auth().currentUser?.displayName
+    }
+
+    var currentAvatarURL: String? {
+        Auth.auth().currentUser?.photoURL?.absoluteString
+    }
+
     private init() {
         // Listen to Auth state changes
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
@@ -68,14 +83,29 @@ class AuthManager: ObservableObject, AuthManagerProtocol {
     }
     
     @MainActor
-    func signUp(email: String, password: String) async throws {
+    func signUp(email: String, password: String, displayName: String) async throws {
         do {
-            try await Auth.auth().createUser(withEmail: email, password: password)
+            // 1. Create the user in Firebase Auth
+            let result = try await Auth.auth().createUser(withEmail: email, password: password)
+            let uid = result.user.uid
+
+            // 2. Create the user profile in Firestore
+            let userData: [String: Any] = [
+                "id": uid,
+                "displayName": displayName,
+                "email": email,
+                "avatarURL": "",
+                "isOnline": true,
+                "lastSeen": FieldValue.serverTimestamp()
+            ]
+
+            try await Firestore.firestore().collection("users").document(uid).setData(userData)
+
         } catch {
             throw mapFirebaseError(error)
         }
     }
-    
+
     @MainActor
     func signInWithApple() async throws {
         _ = try await appleSignInHelper.startSignInWithApple()
